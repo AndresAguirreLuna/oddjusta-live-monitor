@@ -117,6 +117,27 @@ describe('summarizePaperTrades', () => {
 });
 
 describe('MonitorService paper simulation', () => {
+  it('al bootstrap deja Excel sin filas de trades (wipe historial viejo)', async () => {
+    const excelPath = join(tmpdir(), `oddjusta-paper-wipe-${Date.now()}.xlsx`);
+    // Simula Excel previo con basura en disco: se sobrescribe al bootstrap
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(excelPath, 'OLD_CORRUPT_OR_LEGACY_PNL');
+    const monitor = new MonitorService(
+      new SyntheticFeed([]), // sin partidos → no abre trades nuevos
+      { excelPath, bankrollUsd: 500 },
+    );
+    monitor.bootstrap();
+    await monitor.flushExcel();
+    assert.equal(monitor.getState().paperTrades.length, 0);
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(excelPath);
+    const sheet = wb.getWorksheet('Historial');
+    assert.ok(sheet);
+    // Solo cabecera (fila 1); sin filas de datos
+    assert.equal(sheet.rowCount, 1);
+  });
+
   it('abre paper, cierra primer gol con Back Draw (green) y escribe Excel', async () => {
     const excelPath = join(tmpdir(), `oddjusta-paper-${Date.now()}.xlsx`);
     const monitor = new MonitorService(new SyntheticFeed(), {

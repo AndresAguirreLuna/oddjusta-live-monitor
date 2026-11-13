@@ -58,9 +58,12 @@ Modelo paper simplificado — **sin** comisión, liquidez ni fill real de Odd Ju
 |--|--|
 | Ruta en disco | `apps/api/data/exports/historial-paper-trading.xlsx` |
 | Descarga HTTP | `GET http://127.0.0.1:3001/api/paper-trades/excel` |
+| Reset | `POST http://127.0.0.1:3001/api/paper-trades/reset` |
 | Hojas | `Historial` (ops), `Resumen` (% éxito / % no éxito / P&L), `Leyenda` |
 
-Se crea/actualiza al abrir o cerrar operaciones paper. Interpretación rápida:
+**Importante:** el historial paper vive en **memoria de proceso**. El API **no lee** el `.xlsx` al arrancar (así no reaparecen filas con P&L del modelo viejo). Al boot se **reescribe el Excel vacío** y luego solo se añaden trades de la sesión actual (fórmula Lay→Back). El archivo no se versiona en git (solo `data/exports/.gitkeep`).
+
+Interpretación rápida:
 
 - **exito = si** → `pnl_usd > 0` (back salida a cuota mayor que lay entrada)
 - **exito = no** → `pnl_usd ≤ 0` (spread en contra); **no** implica −100% de $5

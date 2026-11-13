@@ -81,6 +81,18 @@ app.get('/api/paper-trades', (_req, res) => {
   });
 });
 
+/** Resetea historial paper + Excel vacío (no recarga filas antiguas). */
+app.post('/api/paper-trades/reset', async (_req, res) => {
+  monitor.resetPaperHistory();
+  await monitor.flushExcel();
+  res.json({
+    ok: true,
+    excelPath: monitor.getExcelPath(),
+    state: monitor.getState(),
+    note: 'Historial vacío. El Excel no se lee al arrancar; solo se reescribe desde memoria.',
+  });
+});
+
 app.get('/api/paper-trades/excel', async (_req, res) => {
   try {
     await monitor.flushExcel();

@@ -127,8 +127,24 @@ export class MonitorService {
     return this.getState();
   }
 
+  /**
+   * Borra historial en memoria y reescribe el Excel vacío (solo cabeceras).
+   * El API **nunca** lee filas previas del .xlsx — así no reaparecen P&L viejos.
+   */
+  resetPaperHistory(): void {
+    this.state.paperTrades = [];
+    this.state.paperStats = emptyPaperStats();
+    this.state.openOperations = 0;
+    this.state.alerts = [];
+    this.state.entryAlertedEventIds = [];
+    this.state.exitAlerted = {};
+    void this.queueExcelWrite();
+  }
+
   /** Evalúa el feed actual sin arrancar el timer (útil en tests). */
   bootstrap(): MonitorState {
+    // Wipe any on-disk Excel from sesiones anteriores (p. ej. modelo P&L viejo)
+    this.resetPaperHistory();
     this.evaluate(this.feed.getMatches());
     return this.getState();
   }
