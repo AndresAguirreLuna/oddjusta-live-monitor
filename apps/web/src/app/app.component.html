@@ -1,0 +1,113 @@
+<div class="shell">
+  <header class="top">
+    <div class="brand-block">
+      <p class="brand">Odd Justa</p>
+      <h1>Monitor de alertas en vivo</h1>
+      <p class="lede">
+        Solo señales. Tú confirmas presión ofensiva y ejecutas a mano en el exchange.
+      </p>
+    </div>
+    <div class="status" [class.live]="connected()">
+      <span class="dot" aria-hidden="true"></span>
+      <span>{{ connected() ? 'Feed sintético conectado' : 'Reconectando…' }}</span>
+    </div>
+  </header>
+
+  @if (lastAlert(); as flash) {
+    <aside class="flash" role="status">
+      <strong>{{ kindLabel(flash.kind) }}</strong>
+      <span>{{ flash.matchLabel }} — {{ flash.message }}</span>
+    </aside>
+  }
+
+  <section class="rule" aria-labelledby="rule-title">
+    <div class="rule-copy">
+      <h2 id="rule-title">Regla piloto · Lay empate</h2>
+      <p>
+        Condiciones numéricas automáticas. La presión ofensiva se confirma
+        <em>manualmente</em> antes de operar.
+      </p>
+    </div>
+    @if (rule(); as r) {
+      <ul class="rule-grid">
+        <li><span>Lado</span><strong>Lay empate</strong></li>
+        <li><span>Minuto</span><strong>{{ r.minuteMin }}–{{ r.minuteMax }}</strong></li>
+        <li><span>Marcador</span><strong>0-0</strong></li>
+        <li><span>Cuota empate</span><strong>{{ r.drawOddsMin | number:'1.2-2' }}–{{ r.drawOddsMax | number:'1.2-2' }}</strong></li>
+        <li><span>Favorito pre</span><strong>{{ r.prematchFavoriteMin | number:'1.2-2' }}–{{ r.prematchFavoriteMax | number:'1.2-2' }}</strong></li>
+        <li><span>O2.5</span><strong>&lt; {{ r.over25MaxExclusive | number:'1.2-2' }}</strong></li>
+        <li><span>Máx. ops</span><strong>{{ r.maxOperations }}</strong></li>
+        <li><span>Bankroll</span><strong>{{ r.bankrollPercentReminder }}%</strong></li>
+      </ul>
+    }
+  </section>
+
+  <div class="panels">
+    <section class="panel matches" aria-labelledby="matches-title">
+      <div class="panel-head">
+        <h2 id="matches-title">Partidos (mock)</h2>
+        @if (state(); as s) {
+          <p>Ops abiertas: {{ s.openOperations }} / {{ s.maxOperations }}</p>
+        }
+      </div>
+
+      <div class="match-list">
+        @for (m of state()?.matches ?? []; track m.eventId) {
+          <article class="match" [class.candidate]="candidateIds().has(m.eventId)">
+            <header>
+              <p class="league">{{ m.league }}</p>
+              <p class="minute">{{ m.minute }}′</p>
+            </header>
+            <h3>{{ m.home }} <span>{{ m.scoreHome }}-{{ m.scoreAway }}</span> {{ m.away }}</h3>
+            <dl>
+              <div><dt>Empate</dt><dd>{{ m.drawOdds | number:'1.2-2' }}</dd></div>
+              <div><dt>Fav. pre</dt><dd>{{ m.prematchFavoriteOdds | number:'1.2-2' }}</dd></div>
+              <div><dt>O2.5</dt><dd>{{ m.over25Odds | number:'1.2-2' }}</dd></div>
+            </dl>
+            @if (candidateIds().has(m.eventId)) {
+              <p class="manual-hint">candidato — confirmar presión ofensiva (manual)</p>
+              <div class="actions">
+                <button type="button" (click)="openOp(m.eventId)">Marcar op. abierta</button>
+                <button type="button" class="ghost" (click)="closeOp(m.eventId)">Cerrar op.</button>
+              </div>
+            }
+          </article>
+        } @empty {
+          <p class="empty">Esperando feed sintético…</p>
+        }
+      </div>
+    </section>
+
+    <section class="panel alerts" aria-labelledby="alerts-title">
+      <div class="panel-head">
+        <h2 id="alerts-title">Alertas</h2>
+        <p>Desktop + este panel</p>
+      </div>
+      <ul class="alert-list">
+        @for (a of state()?.alerts ?? []; track a.id) {
+          <li [attr.data-kind]="a.kind">
+            <div class="alert-meta">
+              <span class="pill">{{ kindLabel(a.kind) }}</span>
+              <time>{{ a.createdAt | date:'HH:mm:ss' }}</time>
+            </div>
+            <strong>{{ a.matchLabel }}</strong>
+            <p>{{ a.message }}</p>
+            @if (a.bankrollHint) {
+              <p class="hint">{{ a.bankrollHint }}</p>
+            }
+            <p class="meta">{{ a.minute }}′ · {{ a.score }}@if (a.drawOdds) { · empate {{ a.drawOdds | number:'1.2-2' }} }</p>
+          </li>
+        } @empty {
+          <li class="empty">Sin alertas todavía. El feed avanza minutos cada ~2 s.</li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <p>
+      MVP local · feed JSON sintético · sin auto-apuesta · sin scrape Odd Justa.
+      Salidas: primer gol · revisión ~45′ · cierre duro ≤60′.
+    </p>
+  </footer>
+</div>
