@@ -9,3 +9,5 @@ coverage/
 apps/api/dist/
 apps/web/dist/
 *.tsbuildinfo
+apps/api/data/exports/*.xlsx
+!apps/api/data/exports/.gitkeep

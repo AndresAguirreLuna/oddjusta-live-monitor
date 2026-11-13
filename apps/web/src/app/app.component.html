@@ -1,10 +1,19 @@
 <div class="shell">
+  <aside class="paper-banner" role="note">
+    <strong>Paper trading simulado</strong>
+    <span>
+      No es dinero real ni órdenes en Odd Justa. Entradas/salidas y P&amp;L son mock
+      sobre el feed sintético (máx. $5 de responsabilidad por entrada).
+    </span>
+  </aside>
+
   <header class="top">
     <div class="brand-block">
       <p class="brand">Odd Justa</p>
-      <h1>Monitor de alertas en vivo</h1>
+      <h1>Monitor de alertas · paper trading</h1>
       <p class="lede">
-        Solo señales. Tú confirmas presión ofensiva y ejecutas a mano en el exchange.
+        Condiciones duras → alerta desktop + entrada simulada. Confirmación de presión
+        ofensiva sigue siendo manual si operas en el exchange de verdad.
       </p>
     </div>
     <div class="status" [class.live]="connected()">
@@ -22,10 +31,10 @@
 
   <section class="rule" aria-labelledby="rule-title">
     <div class="rule-copy">
-      <h2 id="rule-title">Regla piloto · Lay empate</h2>
+      <h2 id="rule-title">Regla piloto · Lay empate (paper)</h2>
       <p>
-        Condiciones numéricas automáticas. La presión ofensiva se confirma
-        <em>manualmente</em> antes de operar.
+        Stake simulado = <strong>min($5, 1% bankroll)</strong>. Bankroll default $500 →
+        <strong>$5</strong> de responsabilidad por entrada.
       </p>
     </div>
     @if (rule(); as r) {
@@ -37,23 +46,38 @@
         <li><span>Favorito pre</span><strong>{{ r.prematchFavoriteMin | number:'1.2-2' }}–{{ r.prematchFavoriteMax | number:'1.2-2' }}</strong></li>
         <li><span>O2.5</span><strong>&lt; {{ r.over25MaxExclusive | number:'1.2-2' }}</strong></li>
         <li><span>Máx. ops</span><strong>{{ r.maxOperations }}</strong></li>
-        <li><span>Bankroll</span><strong>{{ r.bankrollPercentReminder }}%</strong></li>
+        <li><span>Paper stake</span><strong>≤ $5</strong></li>
       </ul>
     }
   </section>
+
+  @if (state()?.paperStats; as stats) {
+    <section class="stats" aria-label="Estadísticas paper">
+      <div><span>Abiertas</span><strong>{{ stats.openCount }}</strong></div>
+      <div><span>Cerradas</span><strong>{{ stats.closedCount }}</strong></div>
+      <div><span>% éxito</span><strong>{{ stats.successPct | number:'1.0-2' }}%</strong></div>
+      <div><span>% no éxito</span><strong>{{ stats.failPct | number:'1.0-2' }}%</strong></div>
+      <div><span>P&amp;L sim.</span><strong>${{ stats.totalPnlUsd | number:'1.2-2' }}</strong></div>
+      <a class="excel-link" [href]="excelUrl" download>Descargar Excel</a>
+    </section>
+  }
 
   <div class="panels">
     <section class="panel matches" aria-labelledby="matches-title">
       <div class="panel-head">
         <h2 id="matches-title">Partidos (mock)</h2>
         @if (state(); as s) {
-          <p>Ops abiertas: {{ s.openOperations }} / {{ s.maxOperations }}</p>
+          <p>Ops paper: {{ s.openOperations }} / {{ s.maxOperations }}</p>
         }
       </div>
 
       <div class="match-list">
         @for (m of state()?.matches ?? []; track m.eventId) {
-          <article class="match" [class.candidate]="candidateIds().has(m.eventId)">
+          <article
+            class="match"
+            [class.candidate]="candidateIds().has(m.eventId)"
+            [class.open-trade]="openTradeIds().has(m.eventId)"
+          >
             <header>
               <p class="league">{{ m.league }}</p>
               <p class="minute">{{ m.minute }}′</p>
@@ -65,10 +89,11 @@
               <div><dt>O2.5</dt><dd>{{ m.over25Odds | number:'1.2-2' }}</dd></div>
             </dl>
             @if (candidateIds().has(m.eventId)) {
-              <p class="manual-hint">candidato — confirmar presión ofensiva (manual)</p>
+              <p class="manual-hint">candidato — confirmar presión ofensiva (manual) · paper ya simulado</p>
+            }
+            @if (openTradeIds().has(m.eventId)) {
               <div class="actions">
-                <button type="button" (click)="openOp(m.eventId)">Marcar op. abierta</button>
-                <button type="button" class="ghost" (click)="closeOp(m.eventId)">Cerrar op.</button>
+                <button type="button" class="ghost" (click)="closeOp(m.eventId)">Cerrar paper</button>
               </div>
             }
           </article>
@@ -104,10 +129,64 @@
     </section>
   </div>
 
+  <section class="panel trades" aria-labelledby="trades-title">
+    <div class="panel-head">
+      <h2 id="trades-title">Registro paper</h2>
+      <p>También en Excel</p>
+    </div>
+    <div class="trade-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Partido</th>
+            <th>Estado</th>
+            <th>Resp.</th>
+            <th>Entrada</th>
+            <th>Salida</th>
+            <th>P&amp;L</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (t of state()?.paperTrades ?? []; track t.id) {
+            <tr>
+              <td>{{ t.matchLabel }}</td>
+              <td>{{ t.status }}</td>
+              <td>${{ t.liabilityUsd | number:'1.2-2' }}</td>
+              <td>{{ t.entryMinute }}′ · cuota {{ t.entryOdds | number:'1.2-2' }}</td>
+              <td>
+                @if (t.exitReason) {
+                  {{ t.exitMinute }}′ · {{ t.exitReason }}
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                @if (t.pnlUsd !== undefined) {
+                  ${{ t.pnlUsd | number:'1.2-2' }}
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                @if (t.success === true) { éxito }
+                @else if (t.success === false) { no éxito }
+                @else { — }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="empty">Sin operaciones paper todavía.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <footer class="foot">
     <p>
-      MVP local · feed JSON sintético · sin auto-apuesta · sin scrape Odd Justa.
-      Salidas: primer gol · revisión ~45′ · cierre duro ≤60′.
+      MVP local · feed JSON sintético · paper trading simulado (Excel en
+      <code>apps/api/data/exports/historial-paper-trading.xlsx</code>) · sin órdenes Odd Justa.
+      Salidas: primer gol (ganadora) · revisión ~45′ · cierre duro ≤60′.
     </p>
   </footer>
 </div>

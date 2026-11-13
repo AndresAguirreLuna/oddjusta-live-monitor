@@ -15,9 +15,11 @@ export interface LiveMatch {
 
 export type AlertKind =
   | 'entry_candidate'
+  | 'paper_entry'
   | 'exit_first_goal'
   | 'exit_halftime_review'
-  | 'exit_hard_close';
+  | 'exit_hard_close'
+  | 'paper_exit';
 
 export interface Alert {
   id: string;
@@ -31,14 +33,53 @@ export interface Alert {
   drawOdds?: number;
   createdAt: string;
   requiresManualPressureConfirm?: boolean;
+  paperTrade?: boolean;
+}
+
+export interface PaperTrade {
+  id: string;
+  eventId: string;
+  matchLabel: string;
+  side: 'lay';
+  selection: 'draw';
+  status: 'open' | 'closed';
+  liabilityUsd: number;
+  entryOdds: number;
+  entryMinute: number;
+  entryScore: string;
+  entryAt: string;
+  exitOdds?: number;
+  exitMinute?: number;
+  exitScore?: string;
+  exitAt?: string;
+  exitReason?: string;
+  pnlUsd?: number;
+  success?: boolean;
+  notes: string;
+}
+
+export interface PaperTradeStats {
+  closedCount: number;
+  successCount: number;
+  failCount: number;
+  successPct: number;
+  failPct: number;
+  totalPnlUsd: number;
+  openCount: number;
 }
 
 export interface MonitorState {
+  mode: 'paper_trading_simulated';
   openOperations: number;
   maxOperations: number;
+  bankrollUsd: number;
   bankrollPercentReminder: number;
+  maxLiabilityUsd: number;
   matches: LiveMatch[];
   alerts: Alert[];
+  paperTrades: PaperTrade[];
+  paperStats: PaperTradeStats;
+  excelPath: string;
   entryAlertedEventIds: string[];
   exitAlerted: Record<string, Partial<Record<AlertKind, boolean>>>;
 }
@@ -59,4 +100,11 @@ export interface PilotRule {
   bankrollPercentReminder: number;
   halftimeReviewMinute: number;
   hardCloseMinute: number;
+  paperTrading?: {
+    maxLiabilityUsd: number;
+    defaultBankrollUsd: number;
+    bankrollPercent: number;
+    bankrollUsd: number;
+    convention: string;
+  };
 }

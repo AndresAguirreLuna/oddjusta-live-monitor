@@ -100,11 +100,12 @@ describe('recordatorios de salida', () => {
 });
 
 describe('buildEntryAlert', () => {
-  it('marca confirmación manual de presión ofensiva y 1% bankroll', () => {
+  it('marca confirmación manual de presión ofensiva y paper trading', () => {
     const alert = buildEntryAlert(baseMatch());
     assert.equal(alert.kind, 'entry_candidate');
     assert.equal(alert.requiresManualPressureConfirm, true);
+    assert.equal(alert.paperTrade, true);
     assert.match(alert.message, /candidato — confirmar presión ofensiva \(manual\)/);
-    assert.match(alert.bankrollHint ?? '', /1%/);
+    assert.match(alert.bankrollHint ?? '', /\$5/);
   });
 });

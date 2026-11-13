@@ -1,15 +1,46 @@
-# Odd Justa — Monitor de alertas en vivo (MVP)
+# Odd Justa — Monitor de alertas + paper trading (MVP)
 
-Herramienta **personal** de alertas para la regla piloto *lay empate* en fútbol en vivo.
-**No es consejo financiero ni legal.** No coloca apuestas automáticamente.
+Herramienta **personal** de alertas y **paper trading simulado** para la regla piloto *lay empate*.
+**No es consejo financiero ni legal.** **No coloca apuestas reales** en Odd Justa.
 
 ## Qué hace este MVP
 
 1. Evalúa un **feed sintético** de partidos (JSON mock) contra la regla piloto.
-2. Si hay match duro → alerta en la **UI** y **notificación de escritorio**:
-   `candidato — confirmar presión ofensiva (manual)`.
-3. Recordatorios de salida: **primer gol**, revisión **~45′**, cierre duro **≤60′**.
-4. Tope de **2 operaciones** simultáneas y recordatorio de **1%** del bankroll.
+2. Si hay match duro → **alerta desktop + UI** (`candidato — confirmar presión ofensiva (manual)`) y **abre una entrada paper simulada**.
+3. Simula la **salida** según el feed: ganadora tras **primer gol**; revisión **~45′** (alerta); cierre forzado **≤60′** si no hay condiciones favorables.
+4. Guarda el **registro** de cada op (entrada/salida, P&L simulado, motivo) y actualiza un **Excel** con historial + **% éxito** / **% no éxito**.
+5. Tope de **2 operaciones** simultáneas.
+
+## Paper trading — convención de stake
+
+| Parámetro | Valor |
+|-----------|--------|
+| Responsabilidad máxima por entrada | **$5 USD** |
+| Bankroll simulado por defecto | **$500** (1% = $5) |
+| Fórmula | `liability = min(5, bankroll × 1%)` |
+
+Por defecto la responsabilidad simulada es **$5**. Si configuras un bankroll cuyo 1% sea menor (p. ej. $300 → $3), se usa ese valor.
+
+### P&L simulado (lay empate)
+
+- **Ganadora** (cierre tras primer gol): `P&L = liability / (cuota_entrada − 1)`
+- **No éxito** (cierre forzado ≤60′ sin gol): `P&L = −liability`
+
+Esto es un modelo simplificado de paper — **no** liquidez real, comisión ni fill de Odd Justa.
+
+## Excel de historial
+
+| | |
+|--|--|
+| Ruta en disco | `apps/api/data/exports/historial-paper-trading.xlsx` |
+| Descarga HTTP | `GET http://127.0.0.1:3001/api/paper-trades/excel` |
+| Hojas | `Historial` (ops), `Resumen` (% éxito / % no éxito / P&L), `Leyenda` |
+
+Se crea/actualiza al abrir o cerrar operaciones paper. Interpretación rápida:
+
+- **exito = si** → `pnl_usd > 0` (típicamente salida por primer gol)
+- **exito = no** → pérdida de responsabilidad (cierre ≤60′ u otro cierre no ganador)
+- **pct_exito / pct_no_exito** → sobre operaciones **cerradas**
 
 ## Regla piloto (entrada)
 
@@ -21,20 +52,21 @@ Herramienta **personal** de alertas para la regla piloto *lay empate* en fútbol
 | Cuota empate | 3.00–4.50 |
 | Favorito prepartido | 1.50–2.10 |
 | Over 2.5 | &lt; 1.90 |
-| Confirmación | presión ofensiva **manual** |
+| Confirmación (real) | presión ofensiva **manual** |
+| Paper | entrada simulada automática al cumplir reglas duras |
 
 ## Mocked vs fuera de alcance
 
-| Incluido (mock) | Fuera de alcance |
-|-----------------|------------------|
+| Incluido | Fuera de alcance |
+|----------|------------------|
 | Feed JSON / simulación de minutos | Scraping o sesión Odd Justa |
-| Motor de reglas + tests | Auto-apuesta / auto-stake |
-| Notificaciones desktop (Notification API) | Telegram u otros canales |
-| UI Angular de partidos y alertas | Métricas automáticas de presión |
+| Paper trading + Excel + P&L mock | Órdenes reales / auto-apuesta en Odd Justa |
+| Notificaciones desktop | Telegram u otros canales |
+| UI Angular (alertas + registro) | Métricas automáticas de presión |
 
 ## Stack
 
-- `apps/api` — Node.js + Express + TypeScript + WebSocket
+- `apps/api` — Node.js + Express + TypeScript + WebSocket + ExcelJS
 - `apps/web` — Angular 19
 - Monorepo npm workspaces
 
@@ -57,8 +89,9 @@ npm run dev:web
 ```
 
 Abre `http://127.0.0.1:4200`, acepta notificaciones del navegador si quieres alertas desktop.
+El banner naranja recuerda que es **paper trading simulado**.
 
-Opcional: un tick manual del feed sintético:
+Opcional: tick manual del feed sintético:
 
 ```bash
 curl -X POST http://127.0.0.1:3001/api/tick
@@ -70,7 +103,7 @@ curl -X POST http://127.0.0.1:3001/api/tick
 npm test
 ```
 
-Cubre el motor de la regla piloto (entrada + salidas + mensaje de candidato).
+Cubre el motor de la regla piloto y el motor de simulación / P&L paper.
 
 ## Scripts útiles
 
@@ -79,19 +112,19 @@ Cubre el motor de la regla piloto (entrada + salidas + mensaje de candidato).
 | `npm run dev:api` | API en modo watch |
 | `npm run dev:web` | Angular serve + proxy |
 | `npm run build` | Build API + web |
-| `npm test` | Unit tests del motor |
+| `npm test` | Unit tests |
 
 ## Endpoints principales
 
-- `GET /api/health` — estado del servicio
-- `GET /api/rule` — regla piloto + out-of-scope
-- `GET /api/state` — partidos, alertas, ops
-- `GET /api/matches` — feed actual
-- `GET /api/alerts` — historial reciente
-- `POST /api/operations/:eventId/open|close` — simular ops abiertas
+- `GET /api/health` — estado (`paper_trading_simulated`)
+- `GET /api/rule` — regla + convención paper
+- `GET /api/state` — partidos, alertas, paper trades, stats
+- `GET /api/paper-trades` — registro + % éxito
+- `GET /api/paper-trades/excel` — descarga `.xlsx`
+- `POST /api/tick` — avanza 1 minuto simulado
 - `WS /ws` — push de estado y alertas
 
 ## Aviso
 
-Uso personal. Ejecución de trades solo a mano en Odd Justa (u otro cliente autorizado).
-Este repo **no** automatiza órdenes ni lee datos reales del exchange.
+Uso personal. Cualquier trade real es **solo a mano** en Odd Justa.
+Este repo **no** envía órdenes ni lee datos reales del exchange.

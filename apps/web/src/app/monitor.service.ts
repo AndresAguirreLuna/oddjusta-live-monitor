@@ -22,20 +22,11 @@ export class MonitorService {
     await this.requestNotificationPermission();
     const [state, rulePayload] = await Promise.all([
       firstValueFrom(this.http.get<MonitorState>('/api/state')),
-      firstValueFrom(
-        this.http.get<{ rule: PilotRule }>('/api/rule'),
-      ),
+      firstValueFrom(this.http.get<{ rule: PilotRule }>('/api/rule')),
     ]);
     this.state.set(state);
     this.rule.set(rulePayload.rule);
     this.connectWs();
-  }
-
-  async openOperation(eventId: string): Promise<void> {
-    const next = await firstValueFrom(
-      this.http.post<MonitorState>(`/api/operations/${eventId}/open`, {}),
-    );
-    this.state.set(next);
   }
 
   async closeOperation(eventId: string): Promise<void> {
@@ -43,6 +34,10 @@ export class MonitorService {
       this.http.post<MonitorState>(`/api/operations/${eventId}/close`, {}),
     );
     this.state.set(next);
+  }
+
+  excelDownloadUrl(): string {
+    return '/api/paper-trades/excel';
   }
 
   private async requestNotificationPermission(): Promise<void> {
@@ -90,9 +85,9 @@ export class MonitorService {
   private showDesktopNotification(alert: Alert): void {
     if (!this.notificationsEnabled || !('Notification' in window)) return;
     const title =
-      alert.kind === 'entry_candidate'
-        ? 'Odd Justa — candidato lay empate'
-        : `Odd Justa — ${alert.kind}`;
+      alert.kind === 'entry_candidate' || alert.kind === 'paper_entry'
+        ? 'Paper trading — candidato / entrada simulada'
+        : `Paper trading — ${alert.kind}`;
     new Notification(title, {
       body: `${alert.matchLabel} (${alert.minute}') — ${alert.message}`,
       tag: alert.id,

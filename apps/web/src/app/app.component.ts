@@ -14,6 +14,12 @@ export class AppComponent implements OnInit {
   readonly rule;
   readonly connected;
   readonly lastAlert;
+  readonly excelUrl;
+
+  readonly openTradeIds = computed(() => {
+    const trades = this.state()?.paperTrades ?? [];
+    return new Set(trades.filter((t) => t.status === 'open').map((t) => t.eventId));
+  });
 
   readonly candidateIds = computed(() => {
     const s = this.state();
@@ -25,6 +31,7 @@ export class AppComponent implements OnInit {
     this.rule = monitor.rule;
     this.connected = monitor.connected;
     this.lastAlert = monitor.lastAlert;
+    this.excelUrl = monitor.excelDownloadUrl();
   }
 
   ngOnInit(): void {
@@ -35,17 +42,17 @@ export class AppComponent implements OnInit {
     switch (kind) {
       case 'entry_candidate':
         return 'Candidato';
+      case 'paper_entry':
+        return 'Paper · entrada';
       case 'exit_first_goal':
         return 'Salida · gol';
       case 'exit_halftime_review':
         return 'Revisión · 45′';
       case 'exit_hard_close':
         return 'Cierre · 60′';
+      case 'paper_exit':
+        return 'Paper · salida';
     }
-  }
-
-  openOp(eventId: string): void {
-    void this.monitor.openOperation(eventId);
   }
 
   closeOp(eventId: string): void {

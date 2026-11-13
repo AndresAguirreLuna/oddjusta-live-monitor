@@ -4,6 +4,7 @@ import {
   RuleEvaluation,
   Alert,
   AlertKind,
+  PaperTrade,
 } from '../types.js';
 
 /** Evalúa condiciones duras de entrada (lay empate piloto). */
@@ -83,21 +84,40 @@ export function buildEntryAlert(match: LiveMatch): Alert {
     eventId: match.eventId,
     matchLabel: matchLabel(match),
     message:
-      'candidato — confirmar presión ofensiva (manual). Lay empate: condiciones numéricas OK.',
-    bankrollHint: `Recordatorio: responsabilidad máxima ≈ ${PILOT_RULE.bankrollPercentReminder}% del bankroll.`,
+      'candidato — confirmar presión ofensiva (manual). Lay empate: condiciones numéricas OK. Paper trading: se simula la entrada (no Odd Justa).',
+    bankrollHint:
+      `Paper: responsabilidad simulada ≤ $5 (o 1% bankroll si es menor). Recordatorio regla: ${PILOT_RULE.bankrollPercentReminder}% bankroll.`,
     minute: match.minute,
     score: scoreLabel(match),
     drawOdds: match.drawOdds,
     createdAt: new Date().toISOString(),
     requiresManualPressureConfirm: true,
+    paperTrade: true,
   };
 }
 
-export function buildExitAlert(match: LiveMatch, kind: Exclude<AlertKind, 'entry_candidate'>): Alert {
-  const messages: Record<Exclude<AlertKind, 'entry_candidate'>, string> = {
-    exit_first_goal: 'Salida: primer gol — revisar cierre del lay empate.',
-    exit_halftime_review: 'Revisión ~45′: evaluar condiciones favorables o plan de cierre.',
-    exit_hard_close: 'Cierre duro ≤60′: cerrar si no hay condiciones favorables.',
+export function buildPaperEntryAlert(match: LiveMatch, trade: PaperTrade): Alert {
+  return {
+    id: nextAlertId('paper-entry'),
+    kind: 'paper_entry',
+    eventId: match.eventId,
+    matchLabel: matchLabel(match),
+    message: `Paper trading: entrada simulada lay empate · responsabilidad $${trade.liabilityUsd.toFixed(2)} @ ${trade.entryOdds.toFixed(2)} (NO es orden real).`,
+    bankrollHint: trade.notes,
+    minute: match.minute,
+    score: scoreLabel(match),
+    drawOdds: match.drawOdds,
+    createdAt: new Date().toISOString(),
+    requiresManualPressureConfirm: true,
+    paperTrade: true,
+  };
+}
+
+export function buildExitAlert(match: LiveMatch, kind: Exclude<AlertKind, 'entry_candidate' | 'paper_entry' | 'paper_exit'>): Alert {
+  const messages: Record<Exclude<AlertKind, 'entry_candidate' | 'paper_entry' | 'paper_exit'>, string> = {
+    exit_first_goal: 'Salida: primer gol — cierre simulado del lay empate (paper).',
+    exit_halftime_review: 'Revisión ~45′: evaluar condiciones favorables o plan de cierre (paper sigue abierta).',
+    exit_hard_close: 'Cierre duro ≤60′: cierre forzado simulado si no hay condiciones favorables.',
   };
 
   return {
@@ -110,5 +130,22 @@ export function buildExitAlert(match: LiveMatch, kind: Exclude<AlertKind, 'entry
     score: scoreLabel(match),
     drawOdds: match.drawOdds,
     createdAt: new Date().toISOString(),
+    paperTrade: true,
+  };
+}
+
+export function buildPaperExitAlert(match: LiveMatch, trade: PaperTrade): Alert {
+  const pnl = trade.pnlUsd ?? 0;
+  return {
+    id: nextAlertId('paper-exit'),
+    kind: 'paper_exit',
+    eventId: match.eventId,
+    matchLabel: matchLabel(match),
+    message: `Paper trading: salida simulada (${trade.exitReason}) · P&L $${pnl.toFixed(2)} · ${trade.success ? 'éxito' : 'no éxito'} (NO es dinero real).`,
+    minute: match.minute,
+    score: scoreLabel(match),
+    drawOdds: match.drawOdds,
+    createdAt: new Date().toISOString(),
+    paperTrade: true,
   };
 }
