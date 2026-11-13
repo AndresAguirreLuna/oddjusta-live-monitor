@@ -1,0 +1,21 @@
+{
+  "name": "oddjusta-live-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MVP de alertas en vivo para Odd Justa (sin auto-apuesta)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@oddjusta/api & npm run start --workspace=@oddjusta/web",
+    "dev:api": "npm run dev --workspace=@oddjusta/api",
+    "dev:web": "npm run start --workspace=@oddjusta/web",
+    "build": "npm run build --workspace=@oddjusta/api && npm run build --workspace=@oddjusta/web",
+    "test": "npm run test --workspace=@oddjusta/api",
+    "start:api": "npm run start --workspace=@oddjusta/api",
+    "start:web": "npm run start --workspace=@oddjusta/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

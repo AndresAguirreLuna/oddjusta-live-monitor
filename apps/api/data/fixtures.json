@@ -1,0 +1,62 @@
+[
+  {
+    "eventId": "syn-001",
+    "sport": "football",
+    "league": "Demo Liga A",
+    "home": "Norte FC",
+    "away": "Sur United",
+    "minute": 12,
+    "scoreHome": 0,
+    "scoreAway": 0,
+    "drawOdds": 3.2,
+    "prematchFavoriteOdds": 1.7,
+    "over25Odds": 1.75,
+    "ts": "2026-11-13T00:00:00.000Z",
+    "_scenario": "entra en ventana 15–30 y dispara candidato"
+  },
+  {
+    "eventId": "syn-002",
+    "sport": "football",
+    "league": "Demo Liga B",
+    "home": "Este City",
+    "away": "Oeste Athletic",
+    "minute": 22,
+    "scoreHome": 0,
+    "scoreAway": 0,
+    "drawOdds": 5.0,
+    "prematchFavoriteOdds": 1.8,
+    "over25Odds": 1.7,
+    "ts": "2026-11-13T00:00:00.000Z",
+    "_scenario": "cuota empate fuera de rango — no alerta entrada"
+  },
+  {
+    "eventId": "syn-003",
+    "sport": "football",
+    "league": "Demo Liga A",
+    "home": "Costa Roja",
+    "away": "Valle Azul",
+    "minute": 18,
+    "scoreHome": 0,
+    "scoreAway": 0,
+    "drawOdds": 3.6,
+    "prematchFavoriteOdds": 1.9,
+    "over25Odds": 1.85,
+    "ts": "2026-11-13T00:00:00.000Z",
+    "_scenario": "segundo candidato válido (tope 2 ops)"
+  },
+  {
+    "eventId": "syn-004",
+    "sport": "football",
+    "league": "Demo Liga C",
+    "home": "Montaña SC",
+    "away": "Río FC",
+    "minute": 25,
+    "scoreHome": 1,
+    "scoreAway": 0,
+    "drawOdds": 3.3,
+    "prematchFavoriteOdds": 1.65,
+    "over25Odds": 1.6,
+    "ts": "2026-11-13T00:00:00.000Z",
+    "_scenario": "ya no es 0-0 — útil para salida primer gol si se trackea"
+  }
+]
