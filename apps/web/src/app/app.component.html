@@ -33,8 +33,9 @@
     <div class="rule-copy">
       <h2 id="rule-title">Regla piloto · Lay empate (paper)</h2>
       <p>
-        Stake simulado = <strong>min($5, 1% bankroll)</strong>. Bankroll default $500 →
-        <strong>$5</strong> de responsabilidad por entrada.
+        Entrada <strong>Lay Draw</strong>, salida siempre <strong>Back Draw</strong>.
+      Stake = <strong>min($5, 1% bankroll)</strong> (default <strong>$5</strong>).
+      P&amp;L = Q×(B−L)/((L−1)×(B−1)) — el no éxito no es −100% de la entrada.
       </p>
     </div>
     @if (rule(); as r) {
@@ -141,8 +142,8 @@
             <th>Partido</th>
             <th>Estado</th>
             <th>Resp.</th>
-            <th>Entrada</th>
-            <th>Salida</th>
+            <th>Lay entrada</th>
+            <th>Back salida</th>
             <th>P&amp;L</th>
             <th>Resultado</th>
           </tr>
@@ -153,10 +154,10 @@
               <td>{{ t.matchLabel }}</td>
               <td>{{ t.status }}</td>
               <td>${{ t.liabilityUsd | number:'1.2-2' }}</td>
-              <td>{{ t.entryMinute }}′ · cuota {{ t.entryOdds | number:'1.2-2' }}</td>
+              <td>{{ t.entryMinute }}′ · {{ t.entryOdds | number:'1.2-2' }}</td>
               <td>
                 @if (t.exitReason) {
-                  {{ t.exitMinute }}′ · {{ t.exitReason }}
+                  {{ t.exitMinute }}′ · {{ t.exitOdds | number:'1.2-2' }} · {{ t.exitReason }}
                 } @else {
                   —
                 }

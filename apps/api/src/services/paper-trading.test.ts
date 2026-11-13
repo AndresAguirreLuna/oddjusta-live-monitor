@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   closePaperTrade,
-  computeLayDrawPnl,
+  computeLayClosedByBackPnl,
   openPaperTrade,
   resolveSimulatedLiability,
   summarizePaperTrades,
@@ -47,55 +47,65 @@ describe('resolveSimulatedLiability', () => {
   });
 });
 
-describe('computeLayDrawPnl', () => {
-  it('calcula ganancia lay tras primer gol: liability/(odds-1)', () => {
-    assert.equal(computeLayDrawPnl(5, 3.5, 'first_goal_win'), 2);
+describe('computeLayClosedByBackPnl', () => {
+  it('green cuando back salida > lay entrada (empate se alarga)', () => {
+    // Q=5, L=3.5, B=8 → 5*(8-3.5)/((3.5-1)*(8-1)) = 1.29
+    assert.equal(computeLayClosedByBackPnl(5, 3.5, 8), 1.29);
   });
 
-  it('calcula pérdida en cierre duro: -liability', () => {
-    assert.equal(computeLayDrawPnl(5, 3.5, 'hard_close_loss'), -5);
+  it('red parcial cuando back salida < lay entrada — NO -100% liability', () => {
+    // Q=5, L=3.5, B=2.5 → -1.33
+    const pnl = computeLayClosedByBackPnl(5, 3.5, 2.5);
+    assert.equal(pnl, -1.33);
+    assert.ok(pnl > -5, 'no éxito no debe ser -liability completa');
+  });
+
+  it('P&L ~0 si back = lay', () => {
+    assert.equal(computeLayClosedByBackPnl(5, 3.5, 3.5), 0);
   });
 });
 
-describe('open/close paper trade', () => {
-  it('abre con liability 5 y cierra ganadora', () => {
-    const open = openPaperTrade(baseMatch());
-    assert.equal(open.status, 'open');
+describe('open/close paper trade (lay → back)', () => {
+  it('cierra siempre con exitSide back y P&L por spread', () => {
+    const open = openPaperTrade(baseMatch({ drawOdds: 3.5 }));
     assert.equal(open.liabilityUsd, 5);
     const closed = closePaperTrade(
       open,
-      baseMatch({ minute: 29, scoreHome: 1, drawOdds: 6 }),
-      'first_goal_win',
+      baseMatch({ minute: 29, scoreHome: 1, drawOdds: 8 }),
+      'first_goal_close',
     );
-    assert.equal(closed.status, 'closed');
+    assert.equal(closed.exitSide, 'back');
+    assert.equal(closed.exitOdds, 8);
     assert.equal(closed.success, true);
-    assert.equal(closed.pnlUsd, 2);
-    assert.equal(closed.exitReason, 'first_goal_win');
+    assert.equal(closed.pnlUsd, 1.29);
+    assert.equal(closed.exitReason, 'first_goal_close');
   });
 
-  it('cierra perdedora en hard close', () => {
-    const open = openPaperTrade(baseMatch());
+  it('hard close con cuota acortada es no éxito pero no -5', () => {
+    const open = openPaperTrade(baseMatch({ drawOdds: 3.5 }));
     const closed = closePaperTrade(
       open,
-      baseMatch({ minute: 60 }),
-      'hard_close_loss',
+      baseMatch({ minute: 60, drawOdds: 2.5 }),
+      'hard_close',
     );
+    assert.equal(closed.exitSide, 'back');
     assert.equal(closed.success, false);
-    assert.equal(closed.pnlUsd, -5);
+    assert.equal(closed.pnlUsd, -1.33);
+    assert.notEqual(closed.pnlUsd, -5);
   });
 });
 
 describe('summarizePaperTrades', () => {
   it('calcula % éxito y % no éxito', () => {
     const win = closePaperTrade(
-      openPaperTrade(baseMatch()),
-      baseMatch({ scoreHome: 1 }),
-      'first_goal_win',
+      openPaperTrade(baseMatch({ drawOdds: 3.5 })),
+      baseMatch({ scoreHome: 1, drawOdds: 8 }),
+      'first_goal_close',
     );
     const loss = closePaperTrade(
-      openPaperTrade(baseMatch({ eventId: 'm2' })),
-      baseMatch({ eventId: 'm2', minute: 60 }),
-      'hard_close_loss',
+      openPaperTrade(baseMatch({ eventId: 'm2', drawOdds: 3.5 })),
+      baseMatch({ eventId: 'm2', minute: 60, drawOdds: 2.5 }),
+      'hard_close',
     );
     const stats = summarizePaperTrades([win, loss]);
     assert.equal(stats.closedCount, 2);
@@ -107,62 +117,61 @@ describe('summarizePaperTrades', () => {
 });
 
 describe('MonitorService paper simulation', () => {
-  it('abre paper al cumplir reglas, cierra en primer gol y escribe Excel', async () => {
+  it('abre paper, cierra primer gol con Back Draw (green) y escribe Excel', async () => {
     const excelPath = join(tmpdir(), `oddjusta-paper-${Date.now()}.xlsx`);
     const monitor = new MonitorService(new SyntheticFeed(), {
       excelPath,
       bankrollUsd: 500,
     });
 
-    // bootstrap evalúa sin timer → syn-003 (min 18) abre
     let state = monitor.bootstrap();
     assert.ok(
       state.paperTrades.some((t) => t.eventId === 'syn-003' && t.status === 'open'),
-      'syn-003 debe abrir paper al arrancar',
     );
-    assert.equal(state.mode, 'paper_trading_simulated');
 
-    // syn-001 entra ~min 15 y marca gol en 29
     for (let i = 0; i < 25; i++) {
       monitor.tickOnce();
     }
     state = monitor.getState();
     const syn001 = state.paperTrades.find((t) => t.eventId === 'syn-001');
-    assert.ok(syn001, 'syn-001 debió abrir');
+    assert.ok(syn001);
     assert.equal(syn001.status, 'closed');
-    assert.equal(syn001.exitReason, 'first_goal_win');
+    assert.equal(syn001.exitReason, 'first_goal_close');
+    assert.equal(syn001.exitSide, 'back');
     assert.equal(syn001.success, true);
     assert.ok((syn001.pnlUsd ?? 0) > 0);
+    assert.ok((syn001.exitOdds ?? 0) > syn001.entryOdds);
 
     await monitor.flushExcel();
     assert.equal(existsSync(excelPath), true);
   });
 
-  it('cierra forzado ≤60 como no éxito si no hay gol', async () => {
+  it('syn-003 cierra ≤60 con Back Draw a cuota acortada: red ≠ -liability', async () => {
     const excelPath = join(tmpdir(), `oddjusta-paper-loss-${Date.now()}.xlsx`);
-    const feed = new SyntheticFeed([
-      baseMatch({
-        eventId: 'no-goal',
-        minute: 20,
-        drawOdds: 3.4,
-        prematchFavoriteOdds: 1.8,
-        over25Odds: 1.7,
-      }),
-    ]);
-    const monitor = new MonitorService(feed, { excelPath, bankrollUsd: 500 });
+    // Solo syn-003 para no saturar el tope de 2 ops
+    const seed = new SyntheticFeed().getMatches().filter((m) => m.eventId === 'syn-003');
+    const monitor = new MonitorService(new SyntheticFeed(seed), {
+      excelPath,
+      bankrollUsd: 500,
+    });
     monitor.bootstrap();
-    assert.equal(monitor.getState().paperTrades[0]?.status, 'open');
+    const opened = monitor.getState().paperTrades[0];
+    assert.equal(opened?.status, 'open');
+    assert.ok((opened?.entryOdds ?? 0) >= 3 && (opened?.entryOdds ?? 0) <= 4.5);
 
-    // Avanzar hasta minuto 60 sin gol (20 → 60 = 40 ticks)
-    for (let i = 0; i < 40; i++) {
+    // 18 → 60 = 42 ticks
+    for (let i = 0; i < 42; i++) {
       monitor.tickOnce();
     }
-    const trade = monitor.getState().paperTrades.find((t) => t.eventId === 'no-goal');
-    assert.ok(trade);
-    assert.equal(trade.status, 'closed');
-    assert.equal(trade.exitReason, 'hard_close_loss');
-    assert.equal(trade.success, false);
-    assert.equal(trade.pnlUsd, -5);
+    const closed = monitor.getState().paperTrades.find((t) => t.eventId === 'syn-003');
+    assert.ok(closed);
+    assert.equal(closed.status, 'closed');
+    assert.equal(closed.exitReason, 'hard_close');
+    assert.equal(closed.exitSide, 'back');
+    assert.ok((closed.exitOdds ?? 99) < closed.entryOdds, 'cuota empate acortada');
+    assert.equal(closed.success, false);
+    assert.ok((closed.pnlUsd ?? 0) < 0);
+    assert.ok((closed.pnlUsd ?? 0) > -closed.liabilityUsd);
 
     await monitor.flushExcel();
   });

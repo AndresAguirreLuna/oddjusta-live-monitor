@@ -58,22 +58,28 @@ export class SyntheticFeed {
       }
       if (next.minute === 29) {
         next.scoreHome = 1;
-        next.drawOdds = 5.5;
+        // Tras gol el empate se alarga → back a cuota alta = green al cerrar el lay
+        next.drawOdds = 8.0;
       }
     }
 
-    // syn-003: candidato válido, luego avanza a 45 y 60 sin gol
+    // syn-003: candidato válido; sin gol la cuota empate se acorta → back < lay = red
     if (m.eventId === 'syn-003') {
+      next.scoreHome = 0;
+      next.scoreAway = 0;
       if (next.minute <= 30) {
         next.drawOdds = 3.55;
-        next.scoreHome = 0;
-        next.scoreAway = 0;
+      } else if (next.minute < 45) {
+        next.drawOdds = clamp(3.55 - (next.minute - 30) * 0.04, 2.6, 3.55);
+      } else {
+        next.drawOdds = clamp(2.9 - (next.minute - 45) * 0.03, 2.2, 2.9);
       }
     }
 
-    // syn-004: ya con gol — útil para salida
+    // syn-004: ya con gol — útil para salida; cuota empate alargada
     if (m.eventId === 'syn-004' && next.minute === 26 && next.scoreHome === 0) {
       next.scoreHome = 1;
+      next.drawOdds = Math.max(next.drawOdds, 7.0);
     }
 
     return next;

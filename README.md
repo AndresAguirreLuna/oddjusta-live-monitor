@@ -21,12 +21,36 @@ Herramienta **personal** de alertas y **paper trading simulado** para la regla p
 
 Por defecto la responsabilidad simulada es **$5**. Si configuras un bankroll cuyo 1% sea menor (p. ej. $300 → $3), se usa ese valor.
 
-### P&L simulado (lay empate)
+### P&L simulado (Lay Draw → Back Draw)
 
-- **Ganadora** (cierre tras primer gol): `P&L = liability / (cuota_entrada − 1)`
-- **No éxito** (cierre forzado ≤60′ sin gol): `P&L = −liability`
+En exchange, **abrir Lay Draw** y **cerrar siempre con Back Draw** (también tras gol o al salir por reglas ~45/≤60). El “no éxito” **no** es −100% de la responsabilidad/$5: es el red del spread de cuotas.
 
-Esto es un modelo simplificado de paper — **no** liquidez real, comisión ni fill de Odd Justa.
+Notación:
+
+| Símbolo | Significado |
+|---------|-------------|
+| `Q` | Responsabilidad (liability) del lay (`min($5, 1% bankroll)`) |
+| `L` | Cuota **lay** de entrada |
+| `B` | Cuota **back** de salida |
+| `S = Q / (L − 1)` | Stake matched del lay |
+| `Sb = Q / (B − 1)` | Stake del back que neutraliza la liability |
+
+**Fórmula (P&L bloqueado al hedgear):**
+
+```text
+P&L = S × (B − L) / (B − 1)
+    = Q × (B − L) / ((L − 1) × (B − 1))
+```
+
+| Caso | Lectura |
+|------|---------|
+| `B > L` | Empate se alarga (p. ej. tras gol) → **green / éxito** |
+| `B < L` | Empate se acorta (sigue 0-0) → **red / no éxito** (parcial, no −Q) |
+| `B = L` | P&L ≈ 0 |
+
+Ejemplo: `Q=5`, `L=3.50`, `B=8.00` → `P&L = 1.29`. Con `B=2.50` → `P&L = −1.33` (no −5).
+
+Modelo paper simplificado — **sin** comisión, liquidez ni fill real de Odd Justa.
 
 ## Excel de historial
 
@@ -38,9 +62,10 @@ Esto es un modelo simplificado de paper — **no** liquidez real, comisión ni f
 
 Se crea/actualiza al abrir o cerrar operaciones paper. Interpretación rápida:
 
-- **exito = si** → `pnl_usd > 0` (típicamente salida por primer gol)
-- **exito = no** → pérdida de responsabilidad (cierre ≤60′ u otro cierre no ganador)
+- **exito = si** → `pnl_usd > 0` (back salida a cuota mayor que lay entrada)
+- **exito = no** → `pnl_usd ≤ 0` (spread en contra); **no** implica −100% de $5
 - **pct_exito / pct_no_exito** → sobre operaciones **cerradas**
+- Cierre siempre registrado como **Back Draw** (`lado_salida = back`)
 
 ## Regla piloto (entrada)
 

@@ -48,6 +48,7 @@ export interface PaperTrade {
   entryMinute: number;
   entryScore: string;
   entryAt: string;
+  exitSide?: 'back';
   exitOdds?: number;
   exitMinute?: number;
   exitScore?: string;

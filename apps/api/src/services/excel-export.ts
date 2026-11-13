@@ -20,15 +20,16 @@ export async function writePaperTradesExcel(
     { header: 'id', key: 'id', width: 28 },
     { header: 'eventId', key: 'eventId', width: 12 },
     { header: 'partido', key: 'matchLabel', width: 28 },
-    { header: 'lado', key: 'side', width: 8 },
+    { header: 'lado_entrada', key: 'side', width: 12 },
     { header: 'seleccion', key: 'selection', width: 10 },
+    { header: 'lado_salida', key: 'exitSide', width: 12 },
     { header: 'estado', key: 'status', width: 10 },
     { header: 'responsabilidad_usd', key: 'liabilityUsd', width: 18 },
-    { header: 'cuota_entrada', key: 'entryOdds', width: 14 },
+    { header: 'cuota_lay_entrada', key: 'entryOdds', width: 16 },
     { header: 'minuto_entrada', key: 'entryMinute', width: 14 },
     { header: 'marcador_entrada', key: 'entryScore', width: 16 },
     { header: 'entrada_at', key: 'entryAt', width: 24 },
-    { header: 'cuota_salida', key: 'exitOdds', width: 12 },
+    { header: 'cuota_back_salida', key: 'exitOdds', width: 16 },
     { header: 'minuto_salida', key: 'exitMinute', width: 14 },
     { header: 'marcador_salida', key: 'exitScore', width: 16 },
     { header: 'salida_at', key: 'exitAt', width: 24 },
@@ -76,23 +77,25 @@ export async function writePaperTradesExcel(
     {
       campo: 'responsabilidad_usd',
       significado:
-        'Liability simulada. Convención: min($5, 1% bankroll). Bankroll default $500 → $5.',
+        'Liability del Lay. Convención: min($5, 1% bankroll). Bankroll default $500 → $5.',
     },
     {
-      campo: 'first_goal_win',
-      significado: 'Salida ganadora: primer gol → P&L = liability / (cuota_entrada - 1)',
+      campo: 'cierre',
+      significado:
+        'Siempre Back Draw para cerrar el Lay Draw (hedge). Motivo: first_goal_close | hard_close | manual_close.',
     },
     {
-      campo: 'hard_close_loss',
-      significado: 'Cierre ≤60′ sin gol / sin condiciones favorables → P&L = -liability',
+      campo: 'pnl_usd',
+      significado:
+        'P&L = Q*(B-L)/((L-1)*(B-1)) con Q=liability, L=cuota lay entrada, B=cuota back salida. NO es ±Q completo.',
     },
     {
-      campo: 'pct_exito',
-      significado: '% de ops cerradas con pnl_usd > 0',
+      campo: 'exito',
+      significado: 'si si pnl_usd > 0 (típicamente B>L); no si pnl_usd ≤ 0 (B≤L). Red ≠ -100% entrada.',
     },
     {
-      campo: 'pct_no_exito',
-      significado: '% de ops cerradas con pnl_usd ≤ 0',
+      campo: 'pct_exito / pct_no_exito',
+      significado: '% sobre operaciones cerradas',
     },
   ]);
 

@@ -115,9 +115,9 @@ export function buildPaperEntryAlert(match: LiveMatch, trade: PaperTrade): Alert
 
 export function buildExitAlert(match: LiveMatch, kind: Exclude<AlertKind, 'entry_candidate' | 'paper_entry' | 'paper_exit'>): Alert {
   const messages: Record<Exclude<AlertKind, 'entry_candidate' | 'paper_entry' | 'paper_exit'>, string> = {
-    exit_first_goal: 'Salida: primer gol — cierre simulado del lay empate (paper).',
-    exit_halftime_review: 'Revisión ~45′: evaluar condiciones favorables o plan de cierre (paper sigue abierta).',
-    exit_hard_close: 'Cierre duro ≤60′: cierre forzado simulado si no hay condiciones favorables.',
+    exit_first_goal: 'Salida: primer gol — cerrar Lay Draw con Back Draw (paper).',
+    exit_halftime_review: 'Revisión ~45′: evaluar condiciones; si sales, cierra con Back Draw (paper sigue abierta).',
+    exit_hard_close: 'Cierre duro ≤60′: cerrar Lay Draw con Back Draw (P&L por spread, no −100% liability).',
   };
 
   return {

@@ -18,24 +18,44 @@ export function resolveSimulatedLiability(
 }
 
 /**
- * P&L de un lay al empate (modelo simplificado paper):
- * - Ganadora (cierre tras primer gol): profit = liability / (odds - 1)
- *   (ganas el stake del backer; responsabilidad = lo que arriesgas si empata).
- * - Perdedora / cierre forzado ≤60 aún en juego sin gol: -liability.
+ * P&L exchange al cerrar un Lay con Back (hedge equalizado).
+ *
+ * Notación:
+ * - Q  = responsabilidad (liability) del lay
+ * - L  = cuota lay de entrada
+ * - B  = cuota back de salida
+ * - Stake lay matched S = Q / (L - 1)
+ * - Back stake de cierre Sb = Q / (B - 1)  (neutraliza la liability)
+ *
+ * P&L bloqueado (mismo en ambos outcomes):
+ *   P&L = S * (B - L) / (B - 1)
+ *       = Q * (B - L) / ((L - 1) * (B - 1))
+ *
+ * - Si B > L (empate se alarga, p. ej. tras gol) → green (éxito)
+ * - Si B < L (empate se acorta, p. ej. sigue 0-0) → red (no éxito), **no** -Q
+ * - Si B = L → P&L ≈ 0
  */
+export function computeLayClosedByBackPnl(
+  liabilityUsd: number,
+  entryLayOdds: number,
+  exitBackOdds: number,
+): number {
+  if (entryLayOdds <= 1 || exitBackOdds <= 1) {
+    throw new Error('cuotas lay/back deben ser > 1');
+  }
+  const pnl =
+    (liabilityUsd * (exitBackOdds - entryLayOdds)) /
+    ((entryLayOdds - 1) * (exitBackOdds - 1));
+  return Number(pnl.toFixed(2));
+}
+
+/** @deprecated alias — prefer computeLayClosedByBackPnl */
 export function computeLayDrawPnl(
   liabilityUsd: number,
   entryOdds: number,
-  exitReason: PaperExitReason,
+  exitBackOdds: number,
 ): number {
-  if (entryOdds <= 1) {
-    throw new Error('entryOdds debe ser > 1');
-  }
-  if (exitReason === 'first_goal_win') {
-    return Number((liabilityUsd / (entryOdds - 1)).toFixed(2));
-  }
-  // hard_close_loss | manual_close sin gol → pérdida de responsabilidad
-  return Number((-liabilityUsd).toFixed(2));
+  return computeLayClosedByBackPnl(liabilityUsd, entryOdds, exitBackOdds);
 }
 
 export function emptyPaperStats(): PaperTradeStats {
@@ -78,6 +98,18 @@ function scoreLabel(match: LiveMatch): string {
   return `${match.scoreHome}-${match.scoreAway}`;
 }
 
+function exitNotes(reason: PaperExitReason, pnlUsd: number): string {
+  const base =
+    'Cierre paper: Back Draw para cerrar el Lay Draw (hedge). No es orden Odd Justa.';
+  if (reason === 'first_goal_close') {
+    return `${base} Motivo: primer gol. P&L $${pnlUsd.toFixed(2)}.`;
+  }
+  if (reason === 'hard_close') {
+    return `${base} Motivo: cierre ≤60′. P&L $${pnlUsd.toFixed(2)} (no es -100% liability).`;
+  }
+  return `${base} Motivo: cierre manual. P&L $${pnlUsd.toFixed(2)}.`;
+}
+
 export function openPaperTrade(
   match: LiveMatch,
   bankrollUsd: number = PAPER_TRADING.defaultBankrollUsd,
@@ -97,7 +129,7 @@ export function openPaperTrade(
     entryScore: scoreLabel(match),
     entryAt: new Date().toISOString(),
     notes:
-      'Paper trading simulado — no es orden real en Odd Justa. Confirmar presión ofensiva es manual en vivo real.',
+      'Paper: Lay Draw abierto. Salida siempre será Back Draw. No es orden real en Odd Justa.',
   };
 }
 
@@ -107,22 +139,23 @@ export function closePaperTrade(
   exitReason: PaperExitReason,
 ): PaperTrade {
   if (trade.status === 'closed') return trade;
-  const pnlUsd = computeLayDrawPnl(trade.liabilityUsd, trade.entryOdds, exitReason);
+  const exitBackOdds = match.drawOdds;
+  const pnlUsd = computeLayClosedByBackPnl(
+    trade.liabilityUsd,
+    trade.entryOdds,
+    exitBackOdds,
+  );
   return {
     ...trade,
     status: 'closed',
-    exitOdds: match.drawOdds,
+    exitSide: 'back',
+    exitOdds: exitBackOdds,
     exitMinute: match.minute,
     exitScore: scoreLabel(match),
     exitAt: new Date().toISOString(),
     exitReason,
     pnlUsd,
     success: pnlUsd > 0,
-    notes:
-      exitReason === 'first_goal_win'
-        ? 'Salida simulada ganadora tras primer gol (lay empate).'
-        : exitReason === 'hard_close_loss'
-          ? 'Cierre forzado ≤60′ sin condiciones favorables (pérdida simulada de responsabilidad).'
-          : 'Cierre manual simulado.',
+    notes: exitNotes(exitReason, pnlUsd),
   };
 }

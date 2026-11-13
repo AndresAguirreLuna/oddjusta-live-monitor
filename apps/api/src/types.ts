@@ -50,8 +50,8 @@ export interface RuleEvaluation {
 }
 
 export type PaperExitReason =
-  | 'first_goal_win'
-  | 'hard_close_loss'
+  | 'first_goal_close'
+  | 'hard_close'
   | 'manual_close';
 
 export type PaperTradeStatus = 'open' | 'closed';
@@ -61,21 +61,26 @@ export interface PaperTrade {
   id: string;
   eventId: string;
   matchLabel: string;
+  /** Apertura siempre lay empate. */
   side: 'lay';
   selection: 'draw';
   status: PaperTradeStatus;
-  /** Responsabilidad/liability simulada en USD. */
+  /** Responsabilidad/liability simulada en USD al lay. */
   liabilityUsd: number;
+  /** Cuota lay de entrada. */
   entryOdds: number;
   entryMinute: number;
   entryScore: string;
   entryAt: string;
+  /** Cierre siempre back empate (hedge). */
+  exitSide?: 'back';
+  /** Cuota back de salida. */
   exitOdds?: number;
   exitMinute?: number;
   exitScore?: string;
   exitAt?: string;
   exitReason?: PaperExitReason;
-  /** P&L simulado en USD (positivo = éxito). */
+  /** P&L simulado en USD (positivo = green / éxito). */
   pnlUsd?: number;
   /** true si pnlUsd > 0 */
   success?: boolean;

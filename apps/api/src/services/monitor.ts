@@ -118,6 +118,7 @@ export class MonitorService {
     const open = this.findOpenTrade(eventId);
     if (match && open) {
       const alerts: Alert[] = [];
+      // Cierre manual también es Back Draw
       this.simulateExit(open, match, 'manual_close', alerts);
       this.emitAlerts(alerts);
       this.refreshTradeStats();
@@ -196,7 +197,7 @@ export class MonitorService {
   private simulateExit(
     trade: PaperTrade,
     match: LiveMatch,
-    reason: 'first_goal_win' | 'hard_close_loss' | 'manual_close',
+    reason: 'first_goal_close' | 'hard_close' | 'manual_close',
     newAlerts: Alert[],
   ): void {
     const closed = closePaperTrade(trade, match, reason);
@@ -248,7 +249,8 @@ export class MonitorService {
         newAlerts.push(buildExitAlert(match, 'exit_first_goal'));
         exitFlags.exit_first_goal = true;
         if (openTrade) {
-          this.simulateExit(openTrade, match, 'first_goal_win', newAlerts);
+          // Cierre = Back Draw (cuota actual del feed)
+          this.simulateExit(openTrade, match, 'first_goal_close', newAlerts);
           tradesChanged = true;
           this.refreshTradeStats();
         }
@@ -265,7 +267,8 @@ export class MonitorService {
         exitFlags.exit_hard_close = true;
         const stillOpen = this.findOpenTrade(match.eventId);
         if (stillOpen) {
-          this.simulateExit(stillOpen, match, 'hard_close_loss', newAlerts);
+          // Cierre = Back Draw (no -100% liability; P&L por movimiento de cuota)
+          this.simulateExit(stillOpen, match, 'hard_close', newAlerts);
           tradesChanged = true;
           this.refreshTradeStats();
         }
